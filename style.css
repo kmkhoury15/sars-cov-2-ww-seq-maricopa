@@ -27,8 +27,7 @@ body {
 }
 
 button,
-input,
-select {
+input {
   font: inherit;
 }
 
@@ -235,7 +234,6 @@ code {
   font-size: 0.82rem;
 }
 
-select,
 input[type="date"] {
   width: 100%;
   border: 1px solid var(--border);
@@ -245,15 +243,73 @@ input[type="date"] {
   padding: 10px 11px;
 }
 
-select[multiple] {
-  min-height: 188px;
-}
-
-select:disabled,
 input:disabled,
 button:disabled {
   cursor: not-allowed;
   opacity: 0.52;
+}
+
+.checkbox-list {
+  width: 100%;
+  min-height: 188px;
+  max-height: 240px;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.checkbox-list.is-disabled {
+  background: #f8fafc;
+  opacity: 0.72;
+}
+
+.check-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #223047;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.check-option:hover,
+.check-option:has(input:focus-visible),
+.check-option.is-active {
+  background: #eff8ff;
+  border-color: #b9d9f1;
+  box-shadow: 0 4px 12px rgba(20, 32, 51, 0.08);
+}
+
+.check-option input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.check-option input:disabled {
+  cursor: not-allowed;
+}
+
+.check-option.is-dimmed {
+  opacity: 0.42;
+}
+
+.checkbox-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 8px;
 }
 
 .date-inputs {
@@ -349,12 +405,17 @@ button:disabled {
 }
 
 .variant-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  max-height: 180px;
+  max-height: 230px;
   overflow: auto;
-  padding-right: 4px;
+}
+
+.variant-checkbox-list {
+  min-height: 92px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.variant-option {
+  gap: 8px;
 }
 
 .variant-chip {
@@ -389,6 +450,44 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+
+.charts-panel {
+  margin-top: 18px;
+}
+
+.chart-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--accent-dark);
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.tab-btn:hover:not(:disabled) {
+  background: #eff8ff;
+  border-color: #a8cdea;
+  transform: translateY(-1px);
+}
+
+.tab-btn.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 .plots-panel {
   min-height: 360px;
 }
@@ -411,7 +510,7 @@ button:disabled {
 
 .site-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(680px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(760px, 100%), 1fr));
   gap: 18px;
   align-items: start;
 }
@@ -451,19 +550,20 @@ button:disabled {
   white-space: nowrap;
 }
 
-.chart-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
-  gap: 10px;
-  padding: 10px;
+.chart-single {
+  padding: 12px;
 }
 
 .chart-box {
-  min-height: 390px;
+  min-height: 560px;
   border: 1px solid #e8eef7;
   border-radius: 14px;
   overflow: hidden;
   background: #fff;
+}
+
+.chart-box-large {
+  min-height: 590px;
 }
 
 .app-footer {
@@ -487,8 +587,7 @@ button:disabled {
 @media (max-width: 760px) {
   .upload-panel,
   .controls-grid,
-  .summary-cards,
-  .chart-grid {
+  .summary-cards {
     grid-template-columns: 1fr;
   }
 

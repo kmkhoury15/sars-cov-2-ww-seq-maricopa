@@ -8,7 +8,7 @@
     sample_location_specify, wwtp_name, freyja_coverage
 */
 
-const APP_VERSION = "2026-07-01-column-parser-v4";
+const APP_VERSION = "2026-07-01-checkbox-tabs-v5";
 
 const REQUIRED_COLUMNS = [
   "specimen_id",
@@ -77,7 +77,8 @@ const state = {
   rows: [],
   variants: [],
   colorMap: {},
-  selectedVariant: null,
+  selectedVariants: new Set(),
+  activeChartTab: "nextclade",
   activeFileName: null,
   warnings: []
 };
@@ -89,9 +90,11 @@ const els = {
   messageBox: document.getElementById("message-box"),
   controlsPanel: document.getElementById("controls-panel"),
   summaryPanel: document.getElementById("summary-panel"),
+  chartsPanel: document.getElementById("charts-panel"),
   plotsPanel: document.getElementById("plots-panel"),
-  siteSelect: document.getElementById("site-select"),
-  locationSelect: document.getElementById("location-select"),
+  siteCheckboxList: document.getElementById("site-checkbox-list"),
+  locationCheckboxList: document.getElementById("location-checkbox-list"),
+  chartTabs: document.getElementById("chart-tabs"),
   startDate: document.getElementById("start-date"),
   endDate: document.getElementById("end-date"),
   comparisonToggle: document.getElementById("comparison-toggle"),
@@ -153,29 +156,42 @@ function init() {
   });
 
   els.loadSampleBtn.addEventListener("click", loadSampleData);
-  els.siteSelect.addEventListener("change", () => {
+
+  els.siteCheckboxList.addEventListener("change", (event) => {
+    if (!event.target.matches('input[type="checkbox"]')) return;
     refreshLocationOptions();
     renderDashboard();
   });
-  els.locationSelect.addEventListener("change", renderDashboard);
+  els.locationCheckboxList.addEventListener("change", (event) => {
+    if (!event.target.matches('input[type="checkbox"]')) return;
+    renderDashboard();
+  });
+  els.chartTabs.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-chart-tab]");
+    if (!button) return;
+    state.activeChartTab = button.dataset.chartTab;
+    updateChartTabs();
+    renderDashboard();
+  });
+
   els.startDate.addEventListener("change", renderDashboard);
   els.endDate.addEventListener("change", renderDashboard);
   els.comparisonToggle.addEventListener("change", renderDashboard);
   els.dimToggle.addEventListener("change", renderDashboard);
 
   els.selectAllSitesBtn.addEventListener("click", () => {
-    setAllOptionsSelected(els.siteSelect, true);
+    setAllCheckboxesChecked(els.siteCheckboxList, true);
     refreshLocationOptions();
     renderDashboard();
   });
   els.clearSitesBtn.addEventListener("click", () => {
-    setAllOptionsSelected(els.siteSelect, false);
+    setAllCheckboxesChecked(els.siteCheckboxList, false);
     refreshLocationOptions();
     renderDashboard();
   });
   els.resetFiltersBtn.addEventListener("click", resetFilters);
   els.clearHighlightBtn.addEventListener("click", () => {
-    state.selectedVariant = null;
+    clearVariantSelections();
     renderDashboard();
   });
 }
@@ -364,7 +380,7 @@ function loadRows(rawRows, fileName) {
 
   state.variants = collectVariants(preparedRows);
   state.colorMap = buildColorMap(state.variants);
-  state.selectedVariant = null;
+  clearVariantSelections();
 
   hydrateControls();
   setPanelsEnabled(true);
@@ -617,11 +633,12 @@ function stableHash(text) {
 
 function hydrateControls() {
   const sites = uniqueSorted(state.rows.map((row) => row.wwtp_name).filter(Boolean));
-  populateSelect(els.siteSelect, sites);
-
-  // Default to the first site to mimic the original app requiring a WWTP selection.
-  setAllOptionsSelected(els.siteSelect, false);
-  if (els.siteSelect.options.length) els.siteSelect.options[0].selected = true;
+  const defaultSelected = sites.length ? [sites[0]] : [];
+  renderCheckboxList(els.siteCheckboxList, sites, {
+    name: "wwtp",
+    selectedValues: defaultSelected,
+    emptyText: "No WWTP values found."
+  });
 
   const dates = state.rows.map((row) => row.__date).sort((a, b) => a - b);
   const minDate = formatISODate(dates[0]);
@@ -635,17 +652,17 @@ function hydrateControls() {
 
   refreshLocationOptions();
   setControlsDisabled(false);
+  updateChartTabs();
 }
 
 function setPanelsEnabled(enabled) {
   els.controlsPanel.classList.toggle("is-disabled", !enabled);
   els.summaryPanel.classList.toggle("is-disabled", !enabled);
+  els.chartsPanel.classList.toggle("is-disabled", !enabled);
 }
 
 function setControlsDisabled(disabled) {
   [
-    els.siteSelect,
-    els.locationSelect,
     els.startDate,
     els.endDate,
     els.comparisonToggle,
@@ -656,66 +673,136 @@ function setControlsDisabled(disabled) {
   ].forEach((el) => {
     el.disabled = disabled;
   });
+
+  setCheckboxGroupDisabled(els.siteCheckboxList, disabled);
+  setCheckboxGroupDisabled(els.locationCheckboxList, disabled || !els.locationCheckboxList.querySelector("input"));
+  Array.from(els.chartTabs.querySelectorAll("button")).forEach((button) => {
+    button.disabled = disabled;
+  });
 }
 
 function refreshLocationOptions() {
-  const selectedSites = getSelectedValues(els.siteSelect);
+  const selectedSites = getCheckedValues(els.siteCheckboxList);
   const locationRows = selectedSites.length
     ? state.rows.filter((row) => selectedSites.includes(row.wwtp_name))
     : state.rows;
-  const previousSelected = new Set(getSelectedValues(els.locationSelect));
+  const previousSelected = new Set(getCheckedValues(els.locationCheckboxList));
   const locations = uniqueSorted(locationRows.map((row) => row.sample_location_specify).filter(Boolean));
-  populateSelect(els.locationSelect, locations);
-  Array.from(els.locationSelect.options).forEach((option) => {
-    option.selected = previousSelected.has(option.value);
+  renderCheckboxList(els.locationCheckboxList, locations, {
+    name: "sample-location",
+    selectedValues: [...previousSelected].filter((value) => locations.includes(value)),
+    emptyText: selectedSites.length ? "No sample locations found for selected WWTPs." : "Select a WWTP to show sample locations."
   });
-  els.locationSelect.disabled = !state.rows.length || !locations.length;
+  setCheckboxGroupDisabled(els.locationCheckboxList, !state.rows.length || !locations.length);
 }
 
-function populateSelect(select, values) {
-  select.innerHTML = "";
+function renderCheckboxList(container, values, { name, selectedValues = [], emptyText = "No values found." } = {}) {
+  container.innerHTML = "";
+  const selected = new Set(selectedValues);
+
+  if (!values.length) {
+    const empty = document.createElement("p");
+    empty.className = "checkbox-empty";
+    empty.textContent = emptyText;
+    container.appendChild(empty);
+    return;
+  }
+
   values.forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    select.appendChild(option);
+    const label = document.createElement("label");
+    label.className = "check-option";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = name || "checkbox-option";
+    input.value = value;
+    input.checked = selected.has(value);
+
+    const text = document.createElement("span");
+    text.textContent = value;
+
+    label.appendChild(input);
+    label.appendChild(text);
+    container.appendChild(label);
+  });
+}
+
+function setCheckboxGroupDisabled(container, disabled) {
+  container.classList.toggle("is-disabled", disabled);
+  Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach((input) => {
+    input.disabled = disabled;
   });
 }
 
 function resetFilters() {
   if (!state.rows.length) return;
-  setAllOptionsSelected(els.siteSelect, false);
-  if (els.siteSelect.options.length) els.siteSelect.options[0].selected = true;
+
+  setAllCheckboxesChecked(els.siteCheckboxList, false);
+  const firstSite = els.siteCheckboxList.querySelector('input[type="checkbox"]');
+  if (firstSite) firstSite.checked = true;
+
   refreshLocationOptions();
-  setAllOptionsSelected(els.locationSelect, false);
+  setAllCheckboxesChecked(els.locationCheckboxList, false);
 
   const dates = state.rows.map((row) => row.__date).sort((a, b) => a - b);
   els.startDate.value = formatISODate(dates[0]);
   els.endDate.value = formatISODate(dates[dates.length - 1]);
   els.comparisonToggle.checked = true;
   els.dimToggle.checked = true;
-  state.selectedVariant = null;
+  clearVariantSelections();
+  state.activeChartTab = "nextclade";
+  updateChartTabs();
   renderDashboard();
 }
 
-function setAllOptionsSelected(select, selected) {
-  Array.from(select.options).forEach((option) => {
-    option.selected = selected;
+function setAllCheckboxesChecked(container, checked) {
+  Array.from(container.querySelectorAll('input[type="checkbox"]')).forEach((input) => {
+    if (!input.disabled) input.checked = checked;
   });
 }
 
-function getSelectedValues(select) {
-  return Array.from(select.selectedOptions).map((option) => option.value);
+function getCheckedValues(container) {
+  return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
 }
 
 function uniqueSorted(values) {
   return [...new Set(values)].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
 }
 
+function updateChartTabs() {
+  Array.from(els.chartTabs.querySelectorAll("[data-chart-tab]")).forEach((button) => {
+    const isActive = button.dataset.chartTab === state.activeChartTab;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+}
+
+function hasVariantSelection() {
+  return state.selectedVariants instanceof Set && state.selectedVariants.size > 0;
+}
+
+function isVariantSelected(variant) {
+  return state.selectedVariants instanceof Set && state.selectedVariants.has(variant);
+}
+
+function toggleVariantSelection(variant) {
+  if (!(state.selectedVariants instanceof Set)) state.selectedVariants = new Set();
+  if (state.selectedVariants.has(variant)) {
+    state.selectedVariants.delete(variant);
+  } else {
+    state.selectedVariants.add(variant);
+  }
+}
+
+function clearVariantSelections() {
+  if (!(state.selectedVariants instanceof Set)) state.selectedVariants = new Set();
+  state.selectedVariants.clear();
+}
+
 function renderDashboard() {
   if (!state.rows.length) return;
 
-  const selectedSites = getSelectedValues(els.siteSelect);
+  const selectedSites = getCheckedValues(els.siteCheckboxList);
   if (!selectedSites.length) {
     renderSummary([]);
     renderVariantLegend();
@@ -768,8 +855,8 @@ function renderDashboard() {
 }
 
 function getFilteredRows() {
-  const selectedSites = new Set(getSelectedValues(els.siteSelect));
-  const selectedLocations = new Set(getSelectedValues(els.locationSelect));
+  const selectedSites = new Set(getCheckedValues(els.siteCheckboxList));
+  const selectedLocations = new Set(getCheckedValues(els.locationCheckboxList));
   const start = els.startDate.value ? parseDate(els.startDate.value) : null;
   const end = els.endDate.value ? parseDate(els.endDate.value) : null;
 
@@ -819,20 +906,38 @@ function renderVariantLegend() {
   }
 
   els.variantLegend.innerHTML = "";
+  const anySelected = hasVariantSelection();
+
   state.variants.forEach((variant) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "variant-chip";
-    if (state.selectedVariant === variant) chip.classList.add("is-active");
-    if (state.selectedVariant && state.selectedVariant !== variant && els.dimToggle.checked) {
-      chip.classList.add("is-dimmed");
+    const label = document.createElement("label");
+    label.className = "check-option variant-option";
+    if (isVariantSelected(variant)) label.classList.add("is-active");
+    if (anySelected && !isVariantSelected(variant) && els.dimToggle.checked) {
+      label.classList.add("is-dimmed");
     }
-    chip.innerHTML = `<span class="swatch" style="background:${getVariantColor(variant)}"></span><span>${escapeHTML(variant)}</span>`;
-    chip.addEventListener("click", () => {
-      state.selectedVariant = state.selectedVariant === variant ? null : variant;
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = "variant-selection";
+    input.value = variant;
+    input.checked = isVariantSelected(variant);
+
+    const swatch = document.createElement("span");
+    swatch.className = "swatch";
+    swatch.style.background = getVariantColor(variant);
+
+    const text = document.createElement("span");
+    text.textContent = variant;
+
+    input.addEventListener("change", () => {
+      toggleVariantSelection(variant);
       renderDashboard();
     });
-    els.variantLegend.appendChild(chip);
+
+    label.appendChild(input);
+    label.appendChild(swatch);
+    label.appendChild(text);
+    els.variantLegend.appendChild(label);
   });
 }
 
@@ -845,6 +950,7 @@ function buildSiteCard(group, groupIndex) {
     ? `${formatISODate(dates[0])} → ${formatISODate(dates[dates.length - 1])}`
     : "No matching dates";
   const specimens = uniqueSorted(group.rows.map((row) => row.specimen_id).filter(Boolean));
+  const tabLabel = getChartTabLabel(state.activeChartTab);
 
   card.innerHTML = `
     <div class="site-card-header">
@@ -853,14 +959,11 @@ function buildSiteCard(group, groupIndex) {
         <p>${dateLabel}</p>
       </div>
       <div class="site-mini-stats">
-        ${group.rows.length.toLocaleString()} rows · ${specimens.length.toLocaleString()} specimens
+        ${escapeHTML(tabLabel)} · ${group.rows.length.toLocaleString()} rows · ${specimens.length.toLocaleString()} specimens
       </div>
     </div>
-    <div class="chart-grid">
-      <div id="chart-${groupIndex}-nextclade" class="chart-box"></div>
-      <div id="chart-${groupIndex}-pango" class="chart-box"></div>
-      <div id="chart-${groupIndex}-pcr" class="chart-box"></div>
-      <div id="chart-${groupIndex}-freyja" class="chart-box"></div>
+    <div class="chart-single">
+      <div id="chart-${groupIndex}-${state.activeChartTab}" class="chart-box chart-box-large"></div>
     </div>
   `;
   return card;
@@ -868,39 +971,50 @@ function buildSiteCard(group, groupIndex) {
 
 function renderGroupPlots(group, groupIndex, globalScales, isComparison) {
   const suffix = isComparison ? ` — ${group.label}` : "";
+  const tab = state.activeChartTab;
+  let fig;
 
-  const nextcladeFig = makeStackedWeeklyFigure({
-    rows: group.rows,
-    column: "nextclade_lineage",
-    title: `Nextclade Lineages (Weekly, Proportional)${suffix}`,
-    legendTitle: "Nextclade lineage",
-    globalWeeks: globalScales.weeks
-  });
+  if (tab === "pango") {
+    fig = makeStackedWeeklyFigure({
+      rows: group.rows,
+      column: "pango_lineage",
+      title: `Pango Lineages (Weekly, Proportional)${suffix}`,
+      legendTitle: "Pango lineage",
+      globalWeeks: globalScales.weeks
+    });
+  } else if (tab === "pcr") {
+    fig = makePCRFigure({
+      rows: group.rows,
+      title: `PCR Target Avg Conc (log)${suffix}`,
+      yRange: globalScales.pcrYRange,
+      dateRange: globalScales.dateRange
+    });
+  } else if (tab === "freyja") {
+    fig = makeFreyjaFigure({
+      rows: group.rows,
+      title: `Freyja Results per Specimen${suffix}`
+    });
+  } else {
+    fig = makeStackedWeeklyFigure({
+      rows: group.rows,
+      column: "nextclade_lineage",
+      title: `Nextclade Lineages (Weekly, Proportional)${suffix}`,
+      legendTitle: "Nextclade lineage",
+      globalWeeks: globalScales.weeks
+    });
+  }
 
-  const pangoFig = makeStackedWeeklyFigure({
-    rows: group.rows,
-    column: "pango_lineage",
-    title: `Pango Lineages (Weekly, Proportional)${suffix}`,
-    legendTitle: "Pango lineage",
-    globalWeeks: globalScales.weeks
-  });
+  drawPlot(`chart-${groupIndex}-${tab}`, fig);
+}
 
-  const pcrFig = makePCRFigure({
-    rows: group.rows,
-    title: `PCR Target Avg Conc (log)${suffix}`,
-    yRange: globalScales.pcrYRange,
-    dateRange: globalScales.dateRange
-  });
-
-  const freyjaFig = makeFreyjaFigure({
-    rows: group.rows,
-    title: `Freyja Results per Specimen${suffix}`
-  });
-
-  drawPlot(`chart-${groupIndex}-nextclade`, nextcladeFig);
-  drawPlot(`chart-${groupIndex}-pango`, pangoFig);
-  drawPlot(`chart-${groupIndex}-pcr`, pcrFig);
-  drawPlot(`chart-${groupIndex}-freyja`, freyjaFig);
+function getChartTabLabel(tab) {
+  const labels = {
+    nextclade: "Nextclade",
+    pango: "Pango",
+    pcr: "PCR log concentration",
+    freyja: "Freyja abundance"
+  };
+  return labels[tab] || "Chart";
 }
 
 function drawPlot(elementId, fig) {
@@ -912,7 +1026,7 @@ function drawPlot(elementId, fig) {
       const trace = eventData.fullData || eventData.data?.[eventData.curveNumber];
       const traceName = trace && trace.name;
       if (traceName && state.variants.includes(traceName)) {
-        state.selectedVariant = state.selectedVariant === traceName ? null : traceName;
+        toggleVariantSelection(traceName);
         renderDashboard();
         return false;
       }
@@ -993,8 +1107,8 @@ function makeStackedWeeklyFigure({ rows, column, title, legendTitle, globalWeeks
       marker: {
         color: getVariantColor(variant),
         line: {
-          color: state.selectedVariant === variant ? "#111827" : "rgba(0,0,0,0)",
-          width: state.selectedVariant === variant ? 1.5 : 0
+          color: isVariantSelected(variant) ? "#111827" : "rgba(0,0,0,0)",
+          width: isVariantSelected(variant) ? 1.5 : 0
         }
       },
       opacity: getVariantOpacity(variant),
@@ -1128,8 +1242,8 @@ function makeFreyjaFigure({ rows, title }) {
     marker: {
       color: getVariantColor(lineage),
       line: {
-        color: state.selectedVariant === lineage ? "#111827" : "rgba(0,0,0,0)",
-        width: state.selectedVariant === lineage ? 1.5 : 0
+        color: isVariantSelected(lineage) ? "#111827" : "rgba(0,0,0,0)",
+        width: isVariantSelected(lineage) ? 1.5 : 0
       }
     },
     opacity: getVariantOpacity(lineage),
@@ -1212,8 +1326,8 @@ function quantile(sortedValues, q) {
 function baseLayout(title, overrides = {}) {
   return {
     title: { text: title, x: 0.02, xanchor: "left", font: { size: 15 } },
-    height: 390,
-    margin: { l: 58, r: 20, t: 58, b: 74 },
+    height: 560,
+    margin: { l: 68, r: 26, t: 68, b: 96 },
     paper_bgcolor: "#ffffff",
     plot_bgcolor: "#ffffff",
     hovermode: "closest",
@@ -1258,8 +1372,8 @@ function getVariantColor(variant) {
 }
 
 function getVariantOpacity(variant) {
-  if (!state.selectedVariant || !els.dimToggle.checked) return 1;
-  return state.selectedVariant === variant ? 1 : 0.18;
+  if (!hasVariantSelection() || !els.dimToggle.checked) return 1;
+  return isVariantSelected(variant) ? 1 : 0.18;
 }
 
 function showMessage(message, type = "info") {

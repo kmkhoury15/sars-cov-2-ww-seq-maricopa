@@ -59,23 +59,23 @@
       <div class="section-title-row">
         <div>
           <h2 id="controls-title">2. Filter and compare</h2>
-          <p>Choose one or more wastewater treatment plants and optional sample locations.</p>
+          <p>Use checkboxes to choose one or more wastewater treatment plants and optional sample locations.</p>
         </div>
         <button id="reset-filters-btn" class="secondary-btn" type="button">Reset filters</button>
       </div>
 
       <div class="controls-grid">
-        <label class="control-group">
+        <div class="control-group">
           <span>WWTP selection</span>
-          <select id="site-select" multiple size="7" disabled></select>
-          <small>Use Ctrl/Cmd-click or Shift-click to select multiple sites.</small>
-        </label>
+          <div id="site-checkbox-list" class="checkbox-list is-disabled" role="group" aria-label="WWTP selection"></div>
+          <small>Check one or more WWTPs to include in the dashboard.</small>
+        </div>
 
-        <label class="control-group">
+        <div class="control-group">
           <span>Sample location selection</span>
-          <select id="location-select" multiple size="7" disabled></select>
-          <small>Leave blank to include all sample locations for the selected WWTPs.</small>
-        </label>
+          <div id="location-checkbox-list" class="checkbox-list is-disabled" role="group" aria-label="Sample location selection"></div>
+          <small>Leave all locations unchecked to include every location for the selected WWTPs.</small>
+        </div>
 
         <div class="control-group date-group">
           <span>Date range</span>
@@ -112,25 +112,41 @@
     <section id="summary-panel" class="panel summary-panel is-disabled" aria-labelledby="summary-title">
       <div class="section-title-row">
         <div>
-          <h2 id="summary-title">3. Summary</h2>
-          <p>Current data coverage after filters are applied.</p>
+          <h2 id="summary-title">3. Summary and variant selection</h2>
+          <p>Current data coverage after filters are applied. Check one or more variants to highlight them across the charts.</p>
         </div>
-        <button id="clear-highlight-btn" class="secondary-btn" type="button" disabled>Clear variant highlight</button>
+        <button id="clear-highlight-btn" class="secondary-btn" type="button" disabled>Clear variant selection</button>
       </div>
       <div id="summary-cards" class="summary-cards"></div>
       <div class="legend-wrapper">
         <div class="legend-heading">
-          <strong>Linked variant legend</strong>
-          <span>Click a variant here or in any Plotly legend to highlight it across all relevant charts.</span>
+          <strong>Variant selection</strong>
+          <span>Checkboxes highlight variants across all relevant Plotly charts; unchecked variants are dimmed when highlighting is active.</span>
         </div>
-        <div id="variant-legend" class="variant-legend"></div>
+        <div id="variant-legend" class="variant-legend checkbox-list variant-checkbox-list" role="group" aria-label="Variant selection"></div>
       </div>
     </section>
 
-    <section id="plots-panel" class="plots-panel" aria-live="polite">
-      <div class="empty-state">
-        <h2>No data loaded yet</h2>
-        <p>Upload a file to generate the dashboard.</p>
+    <section id="charts-panel" class="panel charts-panel is-disabled" aria-labelledby="charts-title">
+      <div class="section-title-row">
+        <div>
+          <h2 id="charts-title">4. Charts</h2>
+          <p>Select a chart tab to give each visualization more space and improve readability.</p>
+        </div>
+      </div>
+
+      <div id="chart-tabs" class="chart-tabs" role="tablist" aria-label="Chart views">
+        <button class="tab-btn is-active" type="button" role="tab" aria-selected="true" data-chart-tab="nextclade">Nextclade</button>
+        <button class="tab-btn" type="button" role="tab" aria-selected="false" data-chart-tab="pango">Pango</button>
+        <button class="tab-btn" type="button" role="tab" aria-selected="false" data-chart-tab="pcr">PCR log concentration</button>
+        <button class="tab-btn" type="button" role="tab" aria-selected="false" data-chart-tab="freyja">Freyja abundance</button>
+      </div>
+
+      <div id="plots-panel" class="plots-panel" aria-live="polite">
+        <div class="empty-state">
+          <h2>No data loaded yet</h2>
+          <p>Upload a file to generate the dashboard.</p>
+        </div>
       </div>
     </section>
   </main>
@@ -141,6 +157,6 @@
     </p>
   </footer>
 
-  <script src="script.js?v=20260701-column-parser-v4"></script>
+  <script src="script.js?v=20260701-checkbox-tabs-v5"></script>
 </body>
 </html>
