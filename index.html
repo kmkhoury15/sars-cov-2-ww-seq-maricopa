@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AZ State Wastewater Sequencing Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!--
+    Browser-only dependencies. These work on GitHub Pages and when index.html is
+    opened directly, as long as the browser has internet access.
+    For fully offline use, download these files and reference them locally.
+  -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Wastewater genomic surveillance</p>
+      <h1>AZ State WW Sequencing Dashboard</h1>
+      <p class="subtitle">
+        Drag and drop a CSV, TSV, or Excel file to generate weekly lineage proportions,
+        PCR concentration trends, and Freyja abundance summaries directly in your browser.
+      </p>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="panel upload-panel" aria-labelledby="upload-title">
+      <div>
+        <h2 id="upload-title">1. Upload wastewater sequencing data</h2>
+        <p>
+          Expected columns are based on the original Dash/Python script:
+          <code>specimen_id</code>, <code>nextclade_lineage</code>, <code>pango_lineage</code>,
+          <code>lineages</code>, <code>abundances</code>, <code>sample_collect_date</code>,
+          <code>pcr_target_avg_conc_log</code>, <code>sample_location_specify</code>,
+          <code>wwtp_name</code>, and <code>freyja_coverage</code>.
+        </p>
+      </div>
+
+      <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Upload data file">
+        <input id="file-input" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" hidden />
+        <div class="drop-icon">⇪</div>
+        <strong>Drop your data file here</strong>
+        <span>or click to browse for CSV, TSV, XLSX, or XLS</span>
+      </div>
+
+      <div class="status-row">
+        <div id="file-status" class="status-pill">No file loaded</div>
+        <button id="load-sample-btn" class="secondary-btn" type="button">Load sample data</button>
+      </div>
+
+      <div id="message-box" class="message-box" aria-live="polite"></div>
+    </section>
+
+    <section id="controls-panel" class="panel controls-panel is-disabled" aria-labelledby="controls-title">
+      <div class="section-title-row">
+        <div>
+          <h2 id="controls-title">2. Filter and compare</h2>
+          <p>Choose one or more wastewater treatment plants and optional sample locations.</p>
+        </div>
+        <button id="reset-filters-btn" class="secondary-btn" type="button">Reset filters</button>
+      </div>
+
+      <div class="controls-grid">
+        <label class="control-group">
+          <span>WWTP selection</span>
+          <select id="site-select" multiple size="7" disabled></select>
+          <small>Use Ctrl/Cmd-click or Shift-click to select multiple sites.</small>
+        </label>
+
+        <label class="control-group">
+          <span>Sample location selection</span>
+          <select id="location-select" multiple size="7" disabled></select>
+          <small>Leave blank to include all sample locations for the selected WWTPs.</small>
+        </label>
+
+        <div class="control-group date-group">
+          <span>Date range</span>
+          <div class="date-inputs">
+            <label>
+              Start
+              <input id="start-date" type="date" disabled />
+            </label>
+            <label>
+              End
+              <input id="end-date" type="date" disabled />
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group toggles-group">
+          <span>Display options</span>
+          <label class="checkbox-row">
+            <input id="comparison-toggle" type="checkbox" checked disabled />
+            <span>Show selected WWTPs side by side</span>
+          </label>
+          <label class="checkbox-row">
+            <input id="dim-toggle" type="checkbox" checked disabled />
+            <span>Dim non-selected variants when highlighting</span>
+          </label>
+          <div class="button-pair">
+            <button id="select-all-sites-btn" class="secondary-btn" type="button" disabled>Select all WWTPs</button>
+            <button id="clear-sites-btn" class="secondary-btn" type="button" disabled>Clear WWTPs</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="summary-panel" class="panel summary-panel is-disabled" aria-labelledby="summary-title">
+      <div class="section-title-row">
+        <div>
+          <h2 id="summary-title">3. Summary</h2>
+          <p>Current data coverage after filters are applied.</p>
+        </div>
+        <button id="clear-highlight-btn" class="secondary-btn" type="button" disabled>Clear variant highlight</button>
+      </div>
+      <div id="summary-cards" class="summary-cards"></div>
+      <div class="legend-wrapper">
+        <div class="legend-heading">
+          <strong>Linked variant legend</strong>
+          <span>Click a variant here or in any Plotly legend to highlight it across all relevant charts.</span>
+        </div>
+        <div id="variant-legend" class="variant-legend"></div>
+      </div>
+    </section>
+
+    <section id="plots-panel" class="plots-panel" aria-live="polite">
+      <div class="empty-state">
+        <h2>No data loaded yet</h2>
+        <p>Upload a file to generate the dashboard.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>
+      Browser-only Plotly dashboard. No Python backend, no server, and no local hosting required.
+    </p>
+  </footer>
+
+  <script src="script.js?v=20260701-column-parser-v4"></script>
+</body>
+</html>

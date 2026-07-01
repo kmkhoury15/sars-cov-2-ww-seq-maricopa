@@ -1,0 +1,15 @@
+specimen_id	nextclade_lineage	pango_lineage	lineages	abundances	sample_collect_date	pcr_target_avg_conc_log	sample_location_specify	wwtp_name	freyja_coverage
+SP-001	23A	XBB.1.5	['XBB.1.5','BQ.1']	[0.82,0.18]	2025-01-06	5.42	Influent	Area 1 WRF	120.5
+SP-002	23A	XBB.1.5	['XBB.1.5','JN.1']	[0.64,0.36]	2025-01-13	5.61	Influent	Area 1 WRF	98.3
+SP-003	23I	JN.1	['JN.1','XBB.1.5']	[0.71,0.29]	2025-01-20	5.86	Influent	Area 1 WRF	133.7
+SP-004	23I	JN.1	['JN.1','KP.2']	[0.59,0.41]	2025-01-27	5.74	Influent	Area 1 WRF	141.2
+SP-005	24A	KP.2	['KP.2','JN.1']	[0.68,0.32]	2025-02-03	5.91	Influent	Area 1 WRF	115.9
+SP-006	23A	XBB.1.5	['XBB.1.5','JN.1']	[0.54,0.46]	2025-01-06	4.92	Influent	Area 2 WRF	89.4
+SP-007	23I	JN.1	['JN.1','XBB.1.5']	[0.73,0.27]	2025-01-13	5.04	Influent	Area 2 WRF	91.7
+SP-008	23I	JN.1	['JN.1','KP.2']	[0.61,0.39]	2025-01-20	5.33	Influent	Area 2 WRF	100.0
+SP-009	24A	KP.2	['KP.2','JN.1']	[0.77,0.23]	2025-01-27	5.38	Influent	Area 2 WRF	126.8
+SP-010	24A	KP.2	['KP.2','LB.1']	[0.66,0.34]	2025-02-03	5.52	Influent	Area 2 WRF	130.1
+SP-011	23I	JN.1	['JN.1','KP.2']	[0.58,0.42]	2025-01-13	4.88	Secondary	Area 3 WRF	77.8
+SP-012	24A	KP.2	['KP.2','JN.1']	[0.62,0.38]	2025-01-20	5.12	Secondary	Area 3 WRF	84.9
+SP-013	24A	KP.2	['KP.2','LB.1']	[0.72,0.28]	2025-01-27	5.28	Secondary	Area 3 WRF	90.4
+SP-014	24B	LB.1	['LB.1','KP.2']	[0.57,0.43]	2025-02-03	5.47	Secondary	Area 3 WRF	93.2
